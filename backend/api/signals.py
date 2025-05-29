@@ -43,23 +43,3 @@ def update_current_grade(sender, instance, **kwargs):
     athlete.save()
 
 
-@receiver(post_save, sender=Team)
-def sync_team_with_category(sender, instance, **kwargs):
-    """
-    Ensure that when a team is assigned to a category, the category reflects the team.
-    """
-    for category in instance.categories.all():
-        category.teams.add(instance)
-
-
-@receiver(m2m_changed, sender=Category.teams.through)
-def sync_category_with_team(sender, instance, action, pk_set, **kwargs):
-    """
-    Ensure that when a team is added to a category, the team reflects the category.
-    """
-    if action == "post_add":
-        for team_id in pk_set:
-            team = Team.objects.get(pk=team_id)
-            if instance not in team.categories.all():
-                team.categories.add(instance)
-

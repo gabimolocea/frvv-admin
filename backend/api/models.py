@@ -225,39 +225,53 @@ class TrainingSeminar(models.Model):
     def __str__(self):
         return f"{self.name} ({self.start_date} - {self.end_date}) at {self.place}"
 
-
-
-    
+           
 class CategoryTeam(models.Model):
+    """
+    Through model for the many-to-many relationship between Category and Team.
+    """
     category = models.ForeignKey('Category', on_delete=models.CASCADE)
     team = models.ForeignKey('Team', on_delete=models.CASCADE)
+    class Meta:
+        unique_together = ('category', 'team')  # Ensure a team cannot be added twice to the same category
 
     def __str__(self):
         return f"{self.team.name} in {self.category.name}"
 
-class Team(models.Model):
-    athletes = models.ManyToManyField(Athlete, related_name='teams')
-    name = models.CharField(max_length=255, blank=True)  # Auto-generated name
 
+class Team(models.Model):
+    """
+    Represents a team of athletes.
+    """
+    athletes = models.ManyToManyField('Athlete', related_name='teams')
+    name = models.CharField(max_length=255, blank=True)  # Auto-generated name
+    categories = models.ManyToManyField(
+        'Category',
+        through='CategoryTeam',  # Use the existing through model
+        related_name='teams',
+        blank=True,
+        limit_choices_to={'type': 'teams'},  # Only allow categories with type 'teams'
+    )
     def save(self, *args, **kwargs):
-        # Automatically generate the team name based on the athletes
-        athlete_names = ", ".join([f"{athlete.first_name} {athlete.last_name}" for athlete in self.athletes.all()])
-        self.name = f"Team: {athlete_names}"
+        # Save the instance first to ensure it has an ID
         super().save(*args, **kwargs)
 
-    def categories_list(self):
-        return ", ".join([category.name for category in self.categories.all()])
+        # Automatically generate the team name based on the athletes
+        athlete_names = " + ".join([f"{athlete.first_name} {athlete.last_name}" for athlete in self.athletes.all()])
+        generated_name = f"{athlete_names}"
+
+        # Update the name field only if it has changed
+        if self.name != generated_name:
+            self.name = generated_name
+            super().save(update_fields=['name'])  # Save only the updated name field
+
     def __str__(self):
         return self.name
 
-class CategoryTeam(models.Model):
-    category = models.ForeignKey('Category', on_delete=models.CASCADE)
-    team = models.ForeignKey(Team, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return f"{self.team.name} in {self.category.name}"
-           
 class Category(models.Model):
+    """
+    Represents a competition category.
+    """
     CATEGORY_TYPE_CHOICES = [
         ('solo', 'Solo'),
         ('teams', 'Teams'),
@@ -271,21 +285,23 @@ class Category(models.Model):
     ]
 
     name = models.CharField(max_length=100)
-    competition = models.ForeignKey(Competition, on_delete=models.CASCADE, related_name='categories')
+    competition = models.ForeignKey('Competition', on_delete=models.CASCADE, related_name='categories')
     type = models.CharField(max_length=20, choices=CATEGORY_TYPE_CHOICES, default='solo')
     gender = models.CharField(max_length=20, choices=GENDER_CHOICES, default='mixt')
-    athletes = models.ManyToManyField(Athlete, related_name='categories', blank=True)
-    teams = models.ManyToManyField(Team, through='CategoryTeam', related_name='new_categories', blank=True)  # New field with through model
+    athletes = models.ManyToManyField('Athlete', related_name='categories', blank=True)  # Many-to-Many relationship with Athlete
+    teams = models.ManyToManyField('Team', through='CategoryTeam', related_name='categories', blank=True)  # Many-to-Many relationship with Team
+
+    def save(self, *args, **kwargs):
+        # Check if the type has changed
+        if self.pk:  # Ensure this is not a new instance
+            old_instance = Category.objects.get(pk=self.pk)
+            if old_instance.type != self.type:
+                # If the type has changed, clear athletes and teams
+                self.athletes.clear()
+                self.teams.clear()
+
+        # Save the instance
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.competition.name})"
-    
-
-    
-class AthleteCategory(models.Model):
-    athlete = models.ForeignKey(Athlete, on_delete=models.CASCADE, related_name='athlete_categories')  # Link to Athlete
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='athlete_categories')  # Link to Category
-    current_weight = models.FloatField(blank=True, null=True)  # Only for Fight type
-
-    def __str__(self):
-        return f"{self.athlete} in {self.category} (Weight: {self.current_weight})"

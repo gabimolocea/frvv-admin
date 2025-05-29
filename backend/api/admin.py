@@ -12,25 +12,17 @@ from .models import (
     FederationRole,
     Competition,
     AnnualVisa,
-    AthleteCategory,
     Category,
     Team,
     CategoryTeam,
 )
 
 class AthleteInline(admin.TabularInline):
-    model = Team.athletes.through
+    model = Athlete
+    fields = ('first_name', 'last_name', 'club', 'city')
     extra = 0
     verbose_name = "Athlete"
     verbose_name_plural = "Athletes"
-
-    
-
-class TeamInline(admin.TabularInline):
-    model = Category.teams.through
-    extra = 0
-    verbose_name = "Team"
-    verbose_name_plural = "Teams"
 
 
 # Inline GradeHistory for Athlete
@@ -210,71 +202,84 @@ class FederationRoleAdmin(admin.ModelAdmin):
     get_associated_athletes.short_description = 'Associated Athletes'
 
 
-# Inline AthleteCategory for Competition
-class AthleteCategoryInline(admin.TabularInline):
-    model = AthleteCategory
-    extra = 0  # Do not show extra empty rows
-    fields = ('athlete', 'current_weight')    
-    show_change_link = True  # Allow linking to the related objects
-    verbose_name = "Athlete (Fight)"
-    verbose_name_plural = "Athletes (Fight)"
-
-
-# Inline Category for Competition
-class CategoryInline(admin.TabularInline):
-    model = Category
-    extra = 1  # Allow adding new categories
-    show_change_link = True  # Allow linking to the related objects
-    inlines = [AthleteCategoryInline]  # Nested inline for athletes
-
+# Custom admin view for Competition
+@admin.register(Competition)
+class CompetitionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'place', 'start_date', 'end_date')  # Display competition details
+    inlines = []  # Add the inline for categories
 
 class CategoryTeamInline(admin.TabularInline):
     model = CategoryTeam  # Use the custom through model
+    fields = ('team',)  # Display the team field
+    autocomplete_fields = ['team']  # Enable autocomplete for the team field
     extra = 0
     verbose_name = "Team in Category"
     verbose_name_plural = "Teams in Category"
 
-
-# Custom admin view for Competition
-@admin.register(Competition)
-class CompetitionAdmin(admin.ModelAdmin):
-    list_display = ('name', 'start_date', 'end_date')  # Display competition details
-    inlines = []  # Add the inline for categories
+    def get_queryset(self, request):
+        """
+        Filter the queryset to display teams only for categories of type 'Teams'.
+        """
+        qs = super().get_queryset(request)
+        # Filter the queryset to include only categories of type 'Teams'
+        return qs.filter(category__type='teams')
+    def save_new(self, form, commit=True):
+        """
+        Override save_new to prevent duplicate teams in the same category.
+        """
+        instance = form.save(commit=False)
+        if CategoryTeam.objects.filter(category=instance.category, team=instance.team).exists():
+            raise ValidationError(f"The team '{instance.team}' is already assigned to this category.")
+        return super().save_new(form, commit)
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'competition', 'type', 'gender')
-    inlines = [CategoryTeamInline]
-    list_filter = ('type', 'gender', 'competition')
-    filter_horizontal = ('athletes',)
+    inlines = [CategoryTeamInline]  # Add the inline for teams in categories
+    filter_horizontal = ('athletes',)  # Allow assigning athletes directly
+
+    def get_form(self, request, obj=None, **kwargs):
+        """
+        Dynamically modify the form to hide the 'athletes' field when creating a new category.
+        """
+        form = super().get_form(request, obj, **kwargs)
+        if obj is None:  # If creating a new category
+            # Remove the 'athletes' field from the form
+            if 'athletes' in form.base_fields:
+                del form.base_fields['athletes']
+            # Add a custom help text message
+            form.base_fields['name'].help_text = (
+                "Create the category first, then reopen it to add athletes or teams."
+            )
+        return form
+
+    def get_fieldsets(self, request, obj=None):
+        """
+        Dynamically modify the fieldsets to hide the 'athletes' field if the category type is 'Teams'.
+        """
+        fieldsets = super().get_fieldsets(request, obj)
+        if obj and obj.type == 'teams':
+            # Remove the 'athletes' field if the category type is 'Teams'
+            return (
+                ('Category Details', {
+                    'fields': ('name', 'competition', 'type', 'gender')
+                }),
+            )
+        return fieldsets
 
     def get_inlines(self, request, obj=None):
         """
-        Dynamically display inlines based on the category type.
+        Dynamically include the CategoryTeamInline only if the category type is 'Teams'.
         """
-        if obj and obj.type == 'solo':
-            return [AthleteInline]
-        elif obj and obj.type == 'teams':
-            return [TeamInline]
-        elif obj and obj.type == 'fight':
-            return [AthleteCategoryInline]
+        if obj and obj.type == 'teams':
+            return [CategoryTeamInline]
         return []
 
-    def get_fields(self, request, obj=None):
-        """
-        Dynamically display fields based on the category type.
-        """
-        fields = ['name', 'competition', 'type', 'gender']
-        if obj and obj.type == 'fight':
-            fields += ['athletes']
-        elif obj and obj.type == 'teams':
-            fields += ['teams']
-        elif obj and obj.type == 'solo':
-            fields += ['athletes']
-        return fields
-    
 @admin.register(Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name',)
-    inlines = [AthleteInline]
-    filter_horizontal = ('athletes',)  # Allow assigning athletes to teams
+    list_display = ('name',)  # Display team name
+    filter_horizontal = ('athletes',)  # Allow assigning athletes to the team
+    readonly_fields = ('name',)
+    autocomplete_fields = ['athletes']  # Enable autocomplete for the athletes field
+    search_fields = ('name',)
+
