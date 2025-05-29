@@ -1,5 +1,8 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.forms import ModelForm
+from django.core.exceptions import ValidationError
+from django import forms
 from .models import (
     City,
     Club,
@@ -15,6 +18,7 @@ from .models import (
     Category,
     Team,
     CategoryTeam,
+    CategoryAthlete
 )
 
 class AthleteInline(admin.TabularInline):
@@ -23,6 +27,15 @@ class AthleteInline(admin.TabularInline):
     extra = 0
     verbose_name = "Athlete"
     verbose_name_plural = "Athletes"
+
+class CategoryAthleteInline(admin.TabularInline):
+    model = CategoryAthlete
+    fields = ('athlete', 'weight')  # Display athlete and weight fields
+    readonly_fields = ('athlete_with_club',)
+    extra = 0
+    autocomplete_fields = ['athlete']  # Enable autocomplete for the athlete field
+    verbose_name = "Athlete in Category"
+    verbose_name_plural = "Athletes in Category"
 
 
 # Inline GradeHistory for Athlete
@@ -210,11 +223,21 @@ class CompetitionAdmin(admin.ModelAdmin):
 
 class CategoryTeamInline(admin.TabularInline):
     model = CategoryTeam  # Use the custom through model
-    fields = ('team',)  # Display the team field
-    autocomplete_fields = ['team']  # Enable autocomplete for the team field
+    #fields = ('team',)  # Display the team field
+    autocomplete_fields = ['team', 'category']  # Enable autocomplete for the team field
     extra = 0
-    verbose_name = "Team in Category"
-    verbose_name_plural = "Teams in Category"
+
+    def get_formset(self, request, obj=None, **kwargs):
+        """
+        Dynamically set the verbose_name_plural based on the parent model.
+        """
+        if isinstance(obj, Team):
+            self.fields = ('category',)
+            self.verbose_name_plural = "TEAM ENROLLED TO CATEGORIES"
+        elif isinstance(obj, Category):
+            self.fields = ('team',)
+            self.verbose_name_plural = "ENROLLED TEAMS"
+        return super().get_formset(request, obj, **kwargs)
 
     def get_queryset(self, request):
         """
@@ -235,8 +258,9 @@ class CategoryTeamInline(admin.TabularInline):
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ('name', 'competition', 'type', 'gender')
-    inlines = [CategoryTeamInline]  # Add the inline for teams in categories
+    inlines = [CategoryTeamInline]  # Add the inline for managing enrolled teams
     filter_horizontal = ('athletes',)  # Allow assigning athletes directly
+    search_fields = ('name', 'competition__name', 'type', 'gender')  # Add search fields
 
     def get_form(self, request, obj=None, **kwargs):
         """
@@ -255,31 +279,60 @@ class CategoryAdmin(admin.ModelAdmin):
 
     def get_fieldsets(self, request, obj=None):
         """
-        Dynamically modify the fieldsets to hide the 'athletes' field if the category type is 'Teams'.
+        Dynamically modify the fieldsets to hide the 'athletes' field if the category type is 'Teams and Fight'.
         """
         fieldsets = super().get_fieldsets(request, obj)
-        if obj and obj.type == 'teams':
+        if obj and obj.type in ['teams', 'fight']:
             # Remove the 'athletes' field if the category type is 'Teams'
             return (
-                ('Category Details', {
+                ('CATEGORY DETAILS', {
                     'fields': ('name', 'competition', 'type', 'gender')
                 }),
             )
         return fieldsets
+    
 
     def get_inlines(self, request, obj=None):
         """
-        Dynamically include the CategoryTeamInline only if the category type is 'Teams'.
+        Dynamically include the CategoryTeamInline only if the category type is 'Teams',
+        and include the CategoryAthleteInline only if the category type is 'Fight'.
         """
-        if obj and obj.type == 'teams':
-            return [CategoryTeamInline]
+        if obj:
+            if obj.type == 'teams':
+                return [CategoryTeamInline]
+            elif obj.type == 'fight':
+                return [CategoryAthleteInline]
         return []
 
+class TeamAdminForm(forms.ModelForm):
+    class Meta:
+        model = Team
+        fields = '__all__'
+
+    def clean(self):
+        """
+        Validate that no team with the same set of athletes already exists.
+        """
+        cleaned_data = super().clean()
+        athletes = self.cleaned_data.get('athletes')
+
+        if self.instance.pk:  # If editing an existing team
+            existing_teams = Team.objects.exclude(pk=self.instance.pk)
+        else:  # If creating a new team
+            existing_teams = Team.objects.all()
+
+        for team in existing_teams:
+            if set(team.athletes.all()) == set(athletes):
+                raise ValidationError("A team with the same members already exists.")
+
+        return cleaned_data
+                
 @admin.register(Team)
 class TeamAdmin(admin.ModelAdmin):
+    form = TeamAdminForm
     list_display = ('name',)  # Display team name
     filter_horizontal = ('athletes',)  # Allow assigning athletes to the team
     readonly_fields = ('name',)
-    autocomplete_fields = ['athletes']  # Enable autocomplete for the athletes field
-    search_fields = ('name',)
+    search_fields = ('name', 'athletes__first_name', 'athletes__last_name')  # Add search fields
+    inlines = [CategoryTeamInline]
 

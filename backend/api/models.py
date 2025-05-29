@@ -225,6 +225,19 @@ class TrainingSeminar(models.Model):
     def __str__(self):
         return f"{self.name} ({self.start_date} - {self.end_date}) at {self.place}"
 
+class CategoryAthlete(models.Model):
+    """
+    Through model for the many-to-many relationship between Category and Athlete.
+    """
+    category = models.ForeignKey('Category', on_delete=models.CASCADE)
+    athlete = models.ForeignKey('Athlete', on_delete=models.CASCADE)
+    weight = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)  # Weight in kilograms
+
+    class Meta:
+        unique_together = ('category', 'athlete')  # Ensure an athlete cannot be added twice to the same category
+
+    def __str__(self):
+        return f"{self.athlete.first_name} {self.athlete.last_name} in {self.category.name} (Weight: {self.weight} kg)"
            
 class CategoryTeam(models.Model):
     """
@@ -248,10 +261,11 @@ class Team(models.Model):
     categories = models.ManyToManyField(
         'Category',
         through='CategoryTeam',  # Use the existing through model
-        related_name='teams',
+        related_name='team_categories',
         blank=True,
         limit_choices_to={'type': 'teams'},  # Only allow categories with type 'teams'
     )
+
     def save(self, *args, **kwargs):
         # Save the instance first to ensure it has an ID
         super().save(*args, **kwargs)
@@ -267,6 +281,7 @@ class Team(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class Category(models.Model):
     """
@@ -289,7 +304,7 @@ class Category(models.Model):
     type = models.CharField(max_length=20, choices=CATEGORY_TYPE_CHOICES, default='solo')
     gender = models.CharField(max_length=20, choices=GENDER_CHOICES, default='mixt')
     athletes = models.ManyToManyField('Athlete', related_name='categories', blank=True)  # Many-to-Many relationship with Athlete
-    teams = models.ManyToManyField('Team', through='CategoryTeam', related_name='categories', blank=True)  # Many-to-Many relationship with Team
+    teams = models.ManyToManyField('Team', through='CategoryTeam', related_name='category_teams', blank=True)  # Many-to-Many relationship with Team
 
     def save(self, *args, **kwargs):
         # Check if the type has changed
@@ -305,3 +320,5 @@ class Category(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.competition.name})"
+
+

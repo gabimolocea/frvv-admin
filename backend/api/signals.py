@@ -1,5 +1,6 @@
 from django.db.models.signals import m2m_changed, post_save, pre_delete
 from django.dispatch import receiver
+from django.core.exceptions import ValidationError
 from .models import *
 
 @receiver(m2m_changed, sender=Club.coaches.through)
@@ -42,4 +43,37 @@ def update_current_grade(sender, instance, **kwargs):
     athlete.current_grade = instance.grade
     athlete.save()
 
+@receiver(m2m_changed, sender=Category.teams.through)
+def sync_category_and_team(sender, instance, action, reverse, pk_set, **kwargs):
+    """
+    Synchronize the relationship between Category and Team.
+    """
+    if action in ['post_add', 'post_remove']:
+        if reverse:
+            # If the change is made from the Team side
+            teams = Team.objects.filter(pk__in=pk_set)
+            for team in teams:
+                if action == 'post_add':
+                    team.categories.add(instance)
+                elif action == 'post_remove':
+                    team.categories.remove(instance)
+        else:
+            # If the change is made from the Category side
+            categories = Category.objects.filter(pk__in=pk_set)
+            for category in categories:
+                if action == 'post_add':
+                    category.teams.add(instance)
+                elif action == 'post_remove':
+                    category.teams.remove(instance)
 
+@receiver(post_save, sender=Team)
+def validate_unique_team_members(sender, instance, **kwargs):
+    """
+    Ensure that no duplicate teams with the same members exist.
+    """
+    # Check if the team has athletes assigned
+    if instance.athletes.exists():
+        existing_teams = Team.objects.exclude(pk=instance.pk)
+        for team in existing_teams:
+            if set(team.athletes.all()) == set(instance.athletes.all()):
+                raise ValidationError("A team with the same members already exists.")
