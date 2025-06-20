@@ -17,92 +17,31 @@ class CityViewSet(viewsets.ViewSet):
     
 class CompetitionViewSet(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
-
+    queryset = Competition.objects.all()
+    serializer_class = CompetitionSerializer
     def list(self, request):
-        # Combine all competitions into a single response
-        national_competitions = NationalCompetition.objects.all()
-        european_competitions = EuropeanCompetition.objects.all()
-        other_competitions = OtherCompetition.objects.all()
-
-        # Serialize each type of competition
-        national_serializer = CompetitionSerializer(national_competitions, many=True)
-        european_serializer = CompetitionSerializer(european_competitions, many=True)
-        other_serializer = CompetitionSerializer(other_competitions, many=True)
-
-        # Combine serialized data
-        combined_data = {
-            "national_competitions": national_serializer.data,
-            "european_competitions": european_serializer.data,
-            "other_competitions": other_serializer.data,
-        }
-
-        return Response(combined_data)
-
+        queryset = Competition.objects.all()
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data)
     def create(self, request):
-        # Determine the type of competition from the request data
-        competition_type = request.data.get("type")
-        serializer = None
-
-        if competition_type == "national":
-            serializer = CompetitionSerializer(data=request.data, model=NationalCompetition)
-        elif competition_type == "european":
-            serializer = CompetitionSerializer(data=request.data, model=EuropeanCompetition)
-        elif competition_type == "other":
-            serializer = CompetitionSerializer(data=request.data, model=OtherCompetition)
-
-        if serializer and serializer.is_valid():
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
-
     def retrieve(self, request, pk=None):
-        # Retrieve competition by ID from all types
-        try:
-            instance = NationalCompetition.objects.get(pk=pk)
-        except NationalCompetition.DoesNotExist:
-            try:
-                instance = EuropeanCompetition.objects.get(pk=pk)
-            except EuropeanCompetition.DoesNotExist:
-                try:
-                    instance = OtherCompetition.objects.get(pk=pk)
-                except OtherCompetition.DoesNotExist:
-                    return Response({"error": "Competition not found"}, status=404)
-
-        serializer = CompetitionSerializer(instance)
+        queryset = self.queryset.get(pk=pk)
+        serializer = self.serializer_class(queryset)
         return Response(serializer.data)
-
     def update(self, request, pk=None):
-        # Update competition by ID from all types
-        try:
-            instance = NationalCompetition.objects.get(pk=pk)
-        except NationalCompetition.DoesNotExist:
-            try:
-                instance = EuropeanCompetition.objects.get(pk=pk)
-            except EuropeanCompetition.DoesNotExist:
-                try:
-                    instance = OtherCompetition.objects.get(pk=pk)
-                except OtherCompetition.DoesNotExist:
-                    return Response({"error": "Competition not found"}, status=404)
-
-        serializer = CompetitionSerializer(instance, data=request.data)
+        instance = self.queryset.get(pk=pk)
+        serializer = self.serializer_class(instance, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
-
     def destroy(self, request, pk=None):
-        # Delete competition by ID from all types
-        try:
-            instance = NationalCompetition.objects.get(pk=pk)
-        except NationalCompetition.DoesNotExist:
-            try:
-                instance = EuropeanCompetition.objects.get(pk=pk)
-            except EuropeanCompetition.DoesNotExist:
-                try:
-                    instance = OtherCompetition.objects.get(pk=pk)
-                except OtherCompetition.DoesNotExist:
-                    return Response({"error": "Competition not found"}, status=404)
-
+        instance = self.queryset.get(pk=pk)
         instance.delete()
         return Response(status=204)
     
@@ -273,22 +212,63 @@ class GradeViewSet(viewsets.ViewSet):
         return Response(status=204)
 class GradeHistoryViewSet(viewsets.ViewSet):
     permission_classes = [permissions.AllowAny]
-    queryset = GradeHistory.objects.all()
     serializer_class = GradeHistorySerializer
+
+    def get_queryset(self):
+        return GradeHistory.objects.all()
+
     def list(self, request):
-        queryset = GradeHistory.objects.all()
+        queryset = self.get_queryset()
         serializer = self.serializer_class(queryset, many=True)
         return Response(serializer.data)
+
     def create(self, request):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        serializer = self.serializer_class(instance)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        serializer = self.serializer_class(instance, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        instance.delete()
+        return Response(status=204)
+    
+class TeamViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.AllowAny]
+    queryset = Team.objects.all()
+    serializer_class = TeamSerializer
+
+    def list(self, request):
+        queryset = Team.objects.all()
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
     def retrieve(self, request, pk=None):
         queryset = self.queryset.get(pk=pk)
         serializer = self.serializer_class(queryset)
         return Response(serializer.data)
+
     def update(self, request, pk=None):
         instance = self.queryset.get(pk=pk)
         serializer = self.serializer_class(instance, data=request.data)
@@ -296,7 +276,235 @@ class GradeHistoryViewSet(viewsets.ViewSet):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
+
     def destroy(self, request, pk=None):
         instance = self.queryset.get(pk=pk)
         instance.delete()
         return Response(status=204)
+    
+
+class MatchViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.AllowAny]
+    queryset = Match.objects.all()
+    serializer_class = MatchSerializer
+
+    def list(self, request):
+        queryset = Match.objects.all()
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        queryset = self.queryset.get(pk=pk)
+        serializer = self.serializer_class(queryset)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        instance = self.queryset.get(pk=pk)
+        serializer = self.serializer_class(instance, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        instance = self.queryset.get(pk=pk)
+        instance.delete()
+        return Response(status=204)
+    
+class AnnualVisaViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = AnnualVisaSerializer
+
+    def get_queryset(self):
+        return AnnualVisa.objects.all()
+
+    def list(self, request):
+        queryset = self.get_queryset()
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        serializer = self.serializer_class(instance)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        serializer = self.serializer_class(instance, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        instance.delete()
+        return Response(status=204)
+
+
+class CategoryViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.AllowAny]
+    queryset = Category.objects.prefetch_related('enrolled_athletes__athlete').all()  # Prefetch athletes for optimization
+    serializer_class = CategorySerializer
+
+    def get_queryset(self):
+        return Category.objects.all()
+
+    def list(self, request):
+        queryset = self.get_queryset()
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        serializer = self.serializer_class(instance)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        serializer = self.serializer_class(instance, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        instance.delete()
+        return Response(status=204)
+    
+
+
+class GradeHistoryViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = GradeHistorySerializer
+
+    def get_queryset(self):
+        return GradeHistory.objects.all()
+
+    def list(self, request):
+        queryset = self.get_queryset()
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        serializer = self.serializer_class(instance)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        serializer = self.serializer_class(instance, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        instance.delete()
+        return Response(status=204)
+
+
+class MedicalVisaViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.AllowAny]
+    serializer_class = MedicalVisaSerializer
+
+    def get_queryset(self):
+        return MedicalVisa.objects.all()
+
+    def list(self, request):
+        queryset = self.get_queryset()
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        serializer = self.serializer_class(instance)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        serializer = self.serializer_class(instance, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        instance = self.get_queryset().get(pk=pk)
+        instance.delete()
+        return Response(status=204)
+
+
+class TrainingSeminarViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.AllowAny]
+    queryset = TrainingSeminar.objects.all()
+    serializer_class = TrainingSeminarSerializer
+
+    def list(self, request):
+        queryset = self.queryset
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def retrieve(self, request, pk=None):
+        instance = self.queryset.get(pk=pk)
+        serializer = self.serializer_class(instance)
+        return Response(serializer.data)
+
+    def update(self, request, pk=None):
+        instance = self.queryset.get(pk=pk)
+        serializer = self.serializer_class(instance, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def destroy(self, request, pk=None):
+        instance = self.queryset.get(pk=pk)
+        instance.delete()
+        return Response(status=204)
+
+

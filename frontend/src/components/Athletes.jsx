@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Box, IconButton, Button } from "@mui/material";
+import { Box, IconButton, Button, Avatar } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import { MaterialReactTable } from "material-react-table";
 import AxiosInstance from "./Axios";
@@ -71,12 +71,30 @@ const Athletes = () => {
   const columns = useMemo(
     () => [
       {
-        accessorKey: "first_name",
-        header: "First Name",
-      },
-      {
-        accessorKey: "last_name",
-        header: "Last Name",
+        accessorKey: "full_name",
+        header: "Name",
+        Cell: ({ row }) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <Avatar
+              src={`http://127.0.0.1:8000${row.original.profile_image || ""}`} // Use the provided base URL and profile image
+              alt={`${row.original.first_name || "Athlete"} ${row.original.last_name || "Profile"}`}
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                marginRight: 0,
+                marginLeft: 0,
+                marginTop: 0,
+              }}
+            />
+            <Link
+              to={`/athletes/${row.original.id}`}
+              style={{ textDecoration: "none", color: "blue", fontWeight: "bold" }}
+            >
+              {`${row.original.first_name} ${row.original.last_name}`}
+            </Link>
+          </Box>
+        ),
       },
       {
         accessorKey: "club",

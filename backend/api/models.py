@@ -18,6 +18,7 @@ class City(models.Model):
 class Competition(models.Model):
     name = models.CharField(max_length=100)
     place = models.CharField(max_length=100, blank=True, null=True)  # Place of the competition
+    
     start_date = models.DateField(blank=True, null=True)  # Start date of the competition
     end_date = models.DateField(blank=True, null=True)
 
@@ -84,6 +85,7 @@ class Athlete(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     date_of_birth = models.DateField()
+    team_place = models.CharField(max_length=50, blank=True, null=True)  # Place awarded to the athlete in a team competition
     address = models.TextField(blank=True, null=True)
     mobile_number = models.CharField(max_length=15, blank=True, null=True)
     club = models.ForeignKey(
@@ -137,6 +139,23 @@ class Athlete(models.Model):
         self.current_grade = highest_grade.grade if highest_grade else None
         self.save()
 
+    def enrolled_competitions_and_categories(self):
+        """
+        Retrieve the competitions and categories where the athlete has been enrolled.
+        """
+        enrolled_categories = self.categories.all()  # Categories where the athlete is enrolled
+        competitions = {category.competition for category in enrolled_categories}  # Extract competitions from categories
+
+        return {
+            "competitions": competitions,
+            "categories": enrolled_categories,
+        }
+    
+    def get_teams(self):
+        """
+        Retrieve the teams the athlete is part of.
+        """
+        return Team.objects.filter(members__athlete=self)
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
     
@@ -190,14 +209,15 @@ class MedicalVisa(models.Model):
 # Annual Visa
 class AnnualVisa(models.Model):
     VISA_STATUS_CHOICES = [
-        ('approved', 'Approved'),
-        ('denied', 'Denied'),
+        ('available', 'Available'),
+        ('expired', 'Expired'),
+        ('not_available', 'Not Available'),  # Default status
     ]
 
     athlete = models.ForeignKey(Athlete, on_delete=models.CASCADE, related_name='annual_visas')
     issued_date = models.DateField(blank=True, null=True)  # Date when the visa was issued
-    visa_status = models.CharField(max_length=10, choices=VISA_STATUS_CHOICES, default='denied')  # Dropdown for visa status
-    
+    visa_status = models.CharField(max_length=15, choices=VISA_STATUS_CHOICES, default='not_available')  # Default status
+
     @property
     def is_valid(self):
         """
@@ -208,10 +228,24 @@ class AnnualVisa(models.Model):
         expiration_date = self.issued_date + timedelta(days=365)  # 12 months validity
         return date.today() <= expiration_date
 
+    def update_visa_status(self):
+        """
+        Automatically update the visa status based on the issued date.
+        """
+        if self.issued_date:
+            self.visa_status = 'available' if self.is_valid else 'expired'
+        else:
+            self.visa_status = 'not_available'
+
+    def save(self, *args, **kwargs):
+        """
+        Override save to automatically update the visa status before saving.
+        """
+        self.update_visa_status()
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        status = "Available" if self.is_valid else "Expired"
-        visa_status = dict(self.VISA_STATUS_CHOICES).get(self.visa_status, "Unknown")
-        return f"Annual Visa for {self.athlete.first_name} {self.athlete.last_name} - {status} ({visa_status})"
+        return f"Annual Visa for {self.athlete.first_name} {self.athlete.last_name} - {self.visa_status.capitalize()}"
 
 
 # Training Seminars
@@ -229,22 +263,31 @@ class CategoryAthlete(models.Model):
     """
     Through model for the many-to-many relationship between Category and Athlete.
     """
-    category = models.ForeignKey('Category', on_delete=models.CASCADE)
+    category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name="enrolled_athletes")
     athlete = models.ForeignKey('Athlete', on_delete=models.CASCADE)
     weight = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)  # Weight in kilograms
 
     class Meta:
         unique_together = ('category', 'athlete')  # Ensure an athlete cannot be added twice to the same category
 
+    def delete(self, *args, **kwargs):
+        """
+        Override the delete method to remove the result from the database.
+        """
+        # Perform any additional cleanup if needed
+        super().delete(*args, **kwargs)
+
     def __str__(self):
         return f"{self.athlete.first_name} {self.athlete.last_name} in {self.category.name} (Weight: {self.weight} kg)"
+    
            
 class CategoryTeam(models.Model):
     """
     Through model for the many-to-many relationship between Category and Team.
     """
-    category = models.ForeignKey('Category', on_delete=models.CASCADE)
-    team = models.ForeignKey('Team', on_delete=models.CASCADE)
+    category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name='enrolled_teams')
+    team = models.ForeignKey('Team', on_delete=models.CASCADE, related_name='enrolled_categories')  # Rename related_name
+
     class Meta:
         unique_together = ('category', 'team')  # Ensure a team cannot be added twice to the same category
 
@@ -256,7 +299,6 @@ class Team(models.Model):
     """
     Represents a team of athletes.
     """
-    athletes = models.ManyToManyField('Athlete', related_name='teams')
     name = models.CharField(max_length=255, blank=True)  # Auto-generated name
     categories = models.ManyToManyField(
         'Category',
@@ -266,21 +308,23 @@ class Team(models.Model):
         limit_choices_to={'type': 'teams'},  # Only allow categories with type 'teams'
     )
 
-    def save(self, *args, **kwargs):
-        # Save the instance first to ensure it has an ID
-        super().save(*args, **kwargs)
-
-        # Automatically generate the team name based on the athletes
-        athlete_names = " + ".join([f"{athlete.first_name} {athlete.last_name}" for athlete in self.athletes.all()])
-        generated_name = f"{athlete_names}"
-
-        # Update the name field only if it has changed
-        if self.name != generated_name:
-            self.name = generated_name
-            super().save(update_fields=['name'])  # Save only the updated name field
 
     def __str__(self):
         return self.name
+
+
+class TeamMember(models.Model):
+    """
+    Represents a member of a team.
+    """
+    team = models.ForeignKey('Team', on_delete=models.CASCADE, related_name='members')
+    athlete = models.ForeignKey('Athlete', on_delete=models.CASCADE, related_name='team_members')
+
+    class Meta:
+        unique_together = ('team', 'athlete')  # Ensure an athlete cannot be added twice to the same team
+
+    def __str__(self):
+        return f"{self.athlete.first_name} {self.athlete.last_name} in {self.team.name}"
 
 
 class Category(models.Model):
@@ -303,8 +347,60 @@ class Category(models.Model):
     competition = models.ForeignKey('Competition', on_delete=models.CASCADE, related_name='categories')
     type = models.CharField(max_length=20, choices=CATEGORY_TYPE_CHOICES, default='solo')
     gender = models.CharField(max_length=20, choices=GENDER_CHOICES, default='mixt')
-    athletes = models.ManyToManyField('Athlete', related_name='categories', blank=True)  # Many-to-Many relationship with Athlete
+    athletes = models.ManyToManyField('Athlete', through='CategoryAthlete', related_name='categories', blank=True)  # Many-to-Many relationship with Athlete
     teams = models.ManyToManyField('Team', through='CategoryTeam', related_name='category_teams', blank=True)  # Many-to-Many relationship with Team
+
+    first_place = models.ForeignKey('Athlete', on_delete=models.SET_NULL, null=True, blank=True, related_name='first_place_categories')
+    second_place = models.ForeignKey('Athlete', on_delete=models.SET_NULL, null=True, blank=True, related_name='second_place_categories')
+    third_place = models.ForeignKey('Athlete', on_delete=models.SET_NULL, null=True, blank=True, related_name='third_place_categories')
+
+    first_place_team = models.ForeignKey('Team', on_delete=models.SET_NULL, null=True, blank=True, related_name='first_place_team_categories')
+    second_place_team = models.ForeignKey('Team', on_delete=models.SET_NULL, null=True, blank=True, related_name='second_place_team_categories')
+    third_place_team = models.ForeignKey('Team', on_delete=models.SET_NULL, null=True, blank=True, related_name='third_place_team_categories')
+    
+     # Use the existing relationships for enrolled teams and individuals
+    
+    def clean(self):
+        """
+        Validate that the awarded individual or team is enrolled in the category and not awarded multiple times.
+        """
+        if self.type == 'teams':
+            # Validate teams
+            awarded_teams = [self.first_place_team, self.second_place_team, self.third_place_team]
+            # Ensure no duplicate awards for teams
+            awarded_teams = list(filter(None, awarded_teams))  # Convert filter result to a list
+            if len(set(awarded_teams)) != len(awarded_teams):
+                raise ValidationError("The same team cannot be awarded multiple times within the same category.")
+
+            # Ensure teams are enrolled before being awarded
+            for team in awarded_teams:
+                if team and not self.teams.filter(pk=team.pk).exists():
+                    raise ValidationError(f"Team '{team}' must be enrolled in the category to be awarded.")
+        elif self.type in ['solo', 'fight']:
+            # Validate individuals
+            awarded_athletes = [self.first_place, self.second_place, self.third_place]
+            # Ensure no duplicate awards for athletes
+            awarded_athletes = list(filter(None, awarded_athletes))  # Convert filter result to a list
+            if len(set(awarded_athletes)) != len(awarded_athletes):
+                raise ValidationError("The same athlete cannot be awarded multiple times within the same category.")
+
+            # Ensure athletes are enrolled before being awarded
+            for athlete in awarded_athletes:
+                if athlete and not CategoryAthlete.objects.filter(category=self, athlete=athlete).exists():
+                    raise ValidationError(f"Athlete '{athlete}' must be enrolled in the category to be awarded.")
+
+
+    def calculate_athlete_scores(self):
+        """
+        Calculate total scores for each athlete in the category.
+        """
+        athlete_scores = {}
+        for score in self.athlete_scores.all():
+            athlete_scores[score.athlete] = athlete_scores.get(score.athlete, 0) + score.score
+        return athlete_scores
+
+    
+    
 
     def save(self, *args, **kwargs):
         # Check if the type has changed
@@ -318,7 +414,101 @@ class Category(models.Model):
         # Save the instance
         super().save(*args, **kwargs)
 
+
     def __str__(self):
         return f"{self.name} ({self.competition.name})"
+
+
+class Match(models.Model):
+    MATCH_TYPE_CHOICES = [
+        ('qualifications', 'Qualifications'),
+        ('semi-finals', 'Semi-Finals'),
+        ('finals', 'Finals'),
+    ]
+
+    category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name='matches')
+    match_type = models.CharField(max_length=20, choices=MATCH_TYPE_CHOICES, default='qualifications')
+    red_corner = models.ForeignKey('Athlete', on_delete=models.CASCADE, related_name='red_corner_matches')
+    blue_corner = models.ForeignKey('Athlete', on_delete=models.CASCADE, related_name='blue_corner_matches')
+    referees = models.ManyToManyField('Athlete', related_name='refereed_matches', limit_choices_to={'is_referee': True})
+    winner = models.ForeignKey('Athlete', on_delete=models.SET_NULL, null=True, blank=True, related_name='won_matches')
+    name = models.CharField(max_length=255, blank=True)  # Automatically generated match name
+
+    def calculate_winner(self):
+        """
+        Determine the winner based on referee votes.
+        """
+        red_votes = self.referee_scores.filter(winner='red').count()
+        blue_votes = self.referee_scores.filter(winner='blue').count()
+        if red_votes > blue_votes:
+            return self.red_corner
+        elif blue_votes > red_votes:
+            return self.blue_corner
+        return None  # No winner if votes are tied
+
+    def save(self, *args, **kwargs):
+        """
+        Override save to clear the winner if referee scoring is removed and generate the match name.
+        """
+        # Save the instance first to ensure it has a primary key
+        if not self.pk:
+            super().save(*args, **kwargs)
+            self.refresh_from_db()  # Reload the instance to ensure it has a primary key
+
+        # Generate the match name
+        self.name = f"{self.red_corner.first_name} vs {self.blue_corner.first_name} ({self.match_type}) - {self.category.name}"
+
+        # Check if there are no referee scores
+        if self.pk and not self.referee_scores.exists():
+            self.winner = None  # Clear the winner
+
+        # Save again to update the winner field and name
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class RefereeScore(models.Model):
+    match = models.ForeignKey('Match', on_delete=models.CASCADE, related_name='referee_scores')
+    referee = models.ForeignKey('Athlete', on_delete=models.CASCADE, limit_choices_to={'is_referee': True})
+    red_corner_score = models.IntegerField(default=0)
+    blue_corner_score = models.IntegerField(default=0)
+    winner = models.CharField(max_length=10, choices=[('red', 'Red Corner'), ('blue', 'Blue Corner')], null=True, blank=True)
+
+    def __str__(self):
+        return f"Referee: {self.referee.first_name} {self.referee.last_name} - Match: {self.match}"
+
+
+class CategoryAthleteScore(models.Model):
+    """
+    Stores referee scores for athletes in a category.
+    """
+    category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name='athlete_scores')
+    athlete = models.ForeignKey('Athlete', on_delete=models.CASCADE, related_name='category_scores')
+    referee = models.ForeignKey('Athlete', on_delete=models.CASCADE, limit_choices_to={'is_referee': True})
+    score = models.IntegerField(default=0)  # Score given by the referee
+
+    class Meta:
+        unique_together = ('category', 'athlete', 'referee')  # Ensure unique scores per referee and athlete
+
+    def __str__(self):
+        return f"{self.athlete.first_name} {self.athlete.last_name} - {self.category.name} - Referee: {self.referee.first_name} {self.referee.last_name}"
+
+
+class CategoryTeamScore(models.Model):
+    """
+    Stores referee scores for teams in a category.
+    """
+    category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name='team_scores')
+    team = models.ForeignKey('Team', on_delete=models.CASCADE, related_name='category_scores')
+    referee = models.ForeignKey('Athlete', on_delete=models.CASCADE, limit_choices_to={'is_referee': True})
+    score = models.IntegerField(default=0)  # Score given by the referee
+
+    class Meta:
+        unique_together = ('category', 'team', 'referee')  # Ensure unique scores per referee and team
+
+    def __str__(self):
+        return f"{self.team.name} - {self.category.name} - Referee: {self.referee.first_name} {self.referee.last_name}"
 
 

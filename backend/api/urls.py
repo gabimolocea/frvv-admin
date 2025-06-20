@@ -11,4 +11,13 @@ router.register('athlete', AthleteViewSet, basename='athlete')
 router.register('title', TitleViewSet, basename='title')
 router.register('federation-role', FederationRoleViewSet, basename='federation-role')
 router.register('grade', GradeViewSet, basename='grade')
+router.register('team', TeamViewSet, basename='team')
+router.register('match', MatchViewSet, basename='match')
+router.register('annual-visa', AnnualVisaViewSet, basename='annual-visa')
+router.register('category', CategoryViewSet, basename='category')
+router.register('grade-history', GradeHistoryViewSet, basename='grade-history')
+router.register('medical-visa', MedicalVisaViewSet, basename='medical-visa')
+router.register('training-seminar', TrainingSeminarViewSet, basename='training-seminar')
+
+
 urlpatterns = router.urls

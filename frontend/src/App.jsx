@@ -10,6 +10,9 @@ import Dashboard from './components/Dashboard'
 import Athletes from './components/Athletes'
 import CreateAthlete from './components/CreateAthlete'
 import EditAthlete from './components/EditAthlete'
+import ViewAthlete from './components/ViewAthlete'
+import ViewClub from './components/ViewClub'
+import Competitions from './components/Competitions'
 
 function App() {
   return (
@@ -21,7 +24,10 @@ function App() {
 
       <Route path="/athletes/" element={<Athletes />} />
       <Route path="/create-athlete" element={<CreateAthlete />} />
-      <Route path="athletes/edit/:id" element={<EditAthlete />} />
+      <Route path="/athletes/edit/:id" element={<EditAthlete />} />
+      <Route path="/athletes/:id/" element={<ViewAthlete />} />
+      <Route path="/clubs/:id" element={<ViewClub />} />
+      <Route path="/competitions" element={<Competitions />} />
     </Routes>
   );
 }

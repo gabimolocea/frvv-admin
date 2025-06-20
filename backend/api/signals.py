@@ -67,13 +67,32 @@ def sync_category_and_team(sender, instance, action, reverse, pk_set, **kwargs):
                     category.teams.remove(instance)
 
 @receiver(post_save, sender=Team)
-def validate_unique_team_members(sender, instance, **kwargs):
+def validate_and_assign_places(sender, instance, **kwargs):
     """
-    Ensure that no duplicate teams with the same members exist.
+    Validate team members and assign places after the team is saved.
     """
-    # Check if the team has athletes assigned
-    if instance.athletes.exists():
-        existing_teams = Team.objects.exclude(pk=instance.pk)
-        for team in existing_teams:
-            if set(team.athletes.all()) == set(instance.athletes.all()):
-                raise ValidationError("A team with the same members already exists.")
+    # Validate that no team with the same set of athletes already exists
+    team_members = instance.members.all()
+    existing_teams = Team.objects.exclude(pk=instance.pk)
+
+    for team in existing_teams:
+        if set(team.members.values_list('athlete', flat=True)) == set(team_members.values_list('athlete', flat=True)):
+            raise ValueError("A team with the same members already exists.")
+
+    # Automatically assign the team's awarded place to its members
+    if instance.categories.filter(first_place_team=instance).exists():
+        instance.assign_team_place_to_members("1st Place")
+    elif instance.categories.filter(second_place_team=instance).exists():
+        instance.assign_team_place_to_members("2nd Place")
+    elif instance.categories.filter(third_place_team=instance).exists():
+        instance.assign_team_place_to_members("3rd Place")
+
+@receiver(post_save, sender=TeamMember)
+def update_team_name(sender, instance, **kwargs):
+    """
+    Update the team name based on its members after a TeamMember is saved.
+    """
+    team = instance.team
+    member_names = [f"{member.athlete.first_name} {member.athlete.last_name}" for member in team.members.all()]
+    team.name = " + ".join(member_names)
+    team.save(update_fields=['name'])  # Save only the updated name field

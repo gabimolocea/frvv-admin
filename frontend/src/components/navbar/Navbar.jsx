@@ -50,6 +50,18 @@ export default function Navbar({ content }) {
     if (location.pathname.startsWith('/athletes/edit')) {
       pageTitle = 'Edit Athlete';
     }
+    // Handle dynamic routes like /athletes/:id
+    if (location.pathname.startsWith('/athletes/')) {
+      const athleteId = location.pathname.split('/')[2]; // Extract the athlete ID from the URL
+      // Fetch athlete data based on the ID (mocked for now)
+      const athleteData = { first_name: 'John', last_name: 'Doe' }; // Replace with actual API call or data lookup
+      pageTitle = null; // Hide the title for this type of page
+    }
+
+    if (location.pathname.startsWith('/clubs/')) {
+      pageTitle = null; // Hide the title for this type of page
+    }
+
 
   // Highlight active menu item
   const updatedNavigation = NAVIGATION.map((item) => {

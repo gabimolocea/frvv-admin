@@ -4,7 +4,7 @@ import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
 
 
-export default function TextForm({label, before, value, name, onChange, onBlur, error,helperText}) {
+export default function TextForm({label, before, value, name, onChange, onBlur, error, helperText}) {
 return (
     <Box>
         <TextField 

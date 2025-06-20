@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Box, IconButton, Button } from "@mui/material";
+import { Box, IconButton, Button, Avatar } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
 import { MaterialReactTable } from "material-react-table";
 import AxiosInstance from "./Axios";
@@ -35,7 +35,7 @@ const Clubs = () => {
 
   const handleDelete = async () => {
     try {
-      await AxiosInstance.delete(`club/${selectedClub.id}/`);
+      await AxiosInstance.delete(`clubs/${selectedClub.id}/`);
       console.log("Deleted club:", selectedClub);
       setMyData(myData.filter((club) => club.id !== selectedClub.id)); // Remove the deleted club from the state
       setOpenDialog(false); // Close the dialog
@@ -49,14 +49,37 @@ const Clubs = () => {
       {
         accessorKey: "name",
         header: "Club Name",
+        Cell: ({ row }) => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <Avatar
+              src={`http://127.0.0.1:8000${row.original.logo || "/media/default_logo.jpg"}`} // Use the provided base URL and default logo
+              alt={`${row.original.name || "Club Logo"}`}
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: "5%",
+                marginRight: 0,
+                marginLeft: 0,
+                marginTop: 0,
+              }}
+            />
+            <Button
+              variant="text"
+              color="primary"
+              onClick={() => navigate(`/clubs/${row.original.id}`)} // Navigate to the Club View page
+              sx={{ textTransform: "none", textDecoration: "underline" }} // Styling for the link
+            >
+              {row.original.name}
+            </Button>
+          </Box>
+        ),
       },
       {
         accessorKey: "city",
         header: "City",
       },
-      
     ],
-    []
+    [navigate]
   );
 
   return (
