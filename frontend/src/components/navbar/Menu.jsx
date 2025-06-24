@@ -7,6 +7,7 @@ import LayersIcon from '@mui/icons-material/Layers';
 import {Link} from 'react-router'
 import Groups2Icon from '@mui/icons-material/Groups2';
 import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 
 const NAVIGATION = [
     { 
@@ -26,6 +27,12 @@ const NAVIGATION = [
         title: 'Athletes', 
         icon: <AssignmentIndIcon />, 
         link: <Link to="/athletes">Athletes</Link> 
+    },
+    { 
+        segment: 'competitions', 
+        title: 'Competitions', 
+        icon: <EmojiEventsIcon />, 
+        link: <Link to="/competitions">Competitions</Link> 
     },
 ];
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Box, Typography, MenuItem, Select } from "@mui/material";
-import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend } from "chart.js";
+import { Chart as ChartJS, BarElement, CategoryScale, LinearScale, Tooltip, Legend, ArcElement } from "chart.js";
 import { Bar, Pie, Line, Bubble } from "react-chartjs-2";
 import { MaterialReactTable } from "material-react-table";
 import AxiosInstance from "./Axios";
@@ -9,7 +9,7 @@ import ChartDataLabels from "chartjs-plugin-datalabels"; // Import the datalabel
 import { getClubNameForAthlete } from "../utils/helpers"; // Import utility function to get club name for athlete
 
 // Register required Chart.js components
-ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels);
+ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels, ArcElement);
 
 const Dashboard = () => {
   const [clubsData, setClubsData] = useState([]);
@@ -114,7 +114,7 @@ const Dashboard = () => {
           },
           athletes: category.enrolled_athletes?.map((enrollment) => {
             const athlete = athletesData.find((a) => a.id === enrollment.athlete);
-            const clubName = getClubNameForAthlete(athlete?.id, athletesData, clubsData);
+            const clubName = athlete?.clubDetails?.name || "Unknown Club";
             return athlete ? `${athlete.first_name} ${athlete.last_name} (${clubName})` : "Unknown";
           }) || [],
         };
@@ -126,25 +126,29 @@ const Dashboard = () => {
             firstPlaceClub: (() => {
               const firstTeam = teamsData.find((team) => team.id === category.first_place_team_id);
               const firstAthleteId = firstTeam?.members?.[0]?.athlete?.id;
-              return getClubNameForAthlete(firstAthleteId, athletesData, clubsData);
+              const athlete = athletesData.find((a) => a.id === firstAthleteId);
+              return athlete?.clubDetails?.name || "Unknown Club";
             })(),
             secondPlace: category.second_place_team_name || "N/A",
             secondPlaceClub: (() => {
               const secondTeam = teamsData.find((team) => team.id === category.second_place_team_id);
               const firstAthleteId = secondTeam?.members?.[0]?.athlete?.id;
-              return getClubNameForAthlete(firstAthleteId, athletesData, clubsData);
+              const athlete = athletesData.find((a) => a.id === firstAthleteId);
+              return athlete?.clubDetails?.name || "Unknown Club";
             })(),
             thirdPlace: category.third_place_team_name || "N/A",
             thirdPlaceClub: (() => {
               const thirdTeam = teamsData.find((team) => team.id === category.third_place_team_id);
               const firstAthleteId = thirdTeam?.members?.[0]?.athlete?.id;
-              return getClubNameForAthlete(firstAthleteId, athletesData, clubsData);
+              const athlete = athletesData.find((a) => a.id === firstAthleteId);
+              return athlete?.clubDetails?.name || "Unknown Club";
             })(),
           },
           teams: category.teams?.map((teamId) => {
             const team = teamsData.find((team) => team.id === teamId);
             const firstAthleteId = team?.members?.[0]?.athlete?.id;
-            const firstAthleteClub = getClubNameForAthlete(firstAthleteId, athletesData, clubsData);
+            const athlete = athletesData.find((a) => a.id === firstAthleteId);
+            const firstAthleteClub = athlete?.clubDetails?.name || "Unknown Club";
             return `${team?.name || "Unknown Team"} (${firstAthleteClub})`;
           }) || [],
         };
@@ -303,6 +307,52 @@ const Dashboard = () => {
     },
   };
 
+  const pieChartData = {
+    labels: clubsData.map((club) => club.name),
+    datasets: [
+      {
+        label: "Athletes per Club",
+        data: clubsData.map((club) => club.athlete_count),
+        backgroundColor: [
+          "rgba(255, 99, 132, 0.8)",
+          "rgba(54, 162, 235, 0.8)",
+          "rgba(255, 206, 86, 0.8)",
+          "rgba(75, 192, 192, 0.8)",
+          "rgba(153, 102, 255, 0.8)",
+          "rgba(255, 159, 64, 0.8)",
+        ],
+        borderColor: [
+          "rgba(255, 99, 132, 1)",
+          "rgba(54, 162, 235, 1)",
+          "rgba(255, 206, 86, 1)",
+          "rgba(75, 192, 192, 1)",
+          "rgba(153, 102, 255, 1)",
+          "rgba(255, 159, 64, 1)",
+        ],
+        borderWidth: 1,
+      },
+    ],
+  };
+
+  const pieChartOptions = {
+    plugins: {
+      legend: {
+        display: true,
+        position: "top",
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const clubIndex = context.dataIndex;
+            const club = clubsData[clubIndex];
+            return `${club.name}: ${club.athlete_count} Athletes`;
+          },
+        },
+      },
+    },
+    responsive: true,
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -313,13 +363,31 @@ const Dashboard = () => {
 
   return (
     <Box>
+      {/* Responsive Layout for Pie Chart and Bar Chart */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" }, // Column for mobile/tablet, row for desktop
+          justifyContent: "space-between",
+          gap: 4, // Space between charts
+          marginBottom: 4,
+        }}
+      >
+        {/* Pie Chart */}
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h6">Athletes per Club</Typography>
+          <Typography variant="body1">Total Athletes: {totalAthletes}</Typography>
+          <Pie data={pieChartData} options={pieChartOptions} />
+        </Box>
 
-      {/* Horizontal Bar Chart */}
-      <Box sx={{ marginBottom: 4 }}>
-        <Typography variant="h6">Clubs Overview</Typography>
-        <Bar data={horizontalBarChartData} options={horizontalBarChartOptions} />
+        {/* Horizontal Bar Chart */}
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h6">Clubs Overview</Typography>
+          <Bar data={horizontalBarChartData} options={horizontalBarChartOptions} />
+        </Box>
       </Box>
 
+      {/* Dropdown for Competitions */}
       <Box sx={{ marginBottom: 2 }}>
         <Typography variant="h6">Competitions</Typography>
         <Select
@@ -340,6 +408,7 @@ const Dashboard = () => {
         </Select>
       </Box>
 
+      {/* Table */}
       <Box>
         <MaterialReactTable
           columns={columns}

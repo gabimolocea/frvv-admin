@@ -58,6 +58,19 @@ export default function Navbar({ content }) {
       pageTitle = null; // Hide the title for this type of page
     }
 
+    if (location.pathname.startsWith('/competition/')) {
+      const competitionId = location.pathname.split('/')[2]; // Extract the competition ID from the URL
+      // Fetch competition data based on the ID (mocked for now)
+      const competitionData = { name: 'Spring Championship' }; // Replace with actual API call or data lookup
+      pageTitle = null;
+    }
+
+   
+
+    if (location.pathname === '/competitions') {
+      pageTitle = 'Competitions'; // Set the title for the competitions page
+    }
+
     if (location.pathname.startsWith('/clubs/')) {
       pageTitle = null; // Hide the title for this type of page
     }

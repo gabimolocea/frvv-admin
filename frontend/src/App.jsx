@@ -13,6 +13,7 @@ import EditAthlete from './components/EditAthlete'
 import ViewAthlete from './components/ViewAthlete'
 import ViewClub from './components/ViewClub'
 import Competitions from './components/Competitions'
+import CompetitionDetails from './components/CompetitionDetails'
 
 function App() {
   return (
@@ -21,7 +22,7 @@ function App() {
       <Route path="/create-club" element={<CreateClub />} />
       <Route path="/clubs" element={<Clubs />} />
       <Route path="clubs/edit/:id" element={<Edit />} />
-
+      <Route path="/competition/:competitionId" element={<CompetitionDetails />} />
       <Route path="/athletes/" element={<Athletes />} />
       <Route path="/create-athlete" element={<CreateAthlete />} />
       <Route path="/athletes/edit/:id" element={<EditAthlete />} />
