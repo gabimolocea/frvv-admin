@@ -190,23 +190,22 @@ class CategoryAthleteSerializer(serializers.ModelSerializer):
 class CategorySerializer(serializers.ModelSerializer):
     competition_name = serializers.CharField(source='competition.name', read_only=True)
     enrolled_athletes = CategoryAthleteSerializer(many=True, read_only=True)  # Include enrolled athletes
-    teams = serializers.StringRelatedField(many=True, read_only=True)  # Include teams
+    teams = TeamSerializer(many=True, read_only=True)  # Use the existing TeamSerializer for teams
     first_place_name = serializers.CharField(source='first_place.first_name', read_only=True, allow_null=True)
     second_place_name = serializers.CharField(source='second_place.first_name', read_only=True, allow_null=True)
     third_place_name = serializers.CharField(source='third_place.first_name', read_only=True, allow_null=True)
-    first_place_team_name = serializers.CharField(source='first_place_team.name', read_only=True, allow_null=True)
-    second_place_team_name = serializers.CharField(source='second_place_team.name', read_only=True, allow_null=True)
-    third_place_team_name = serializers.CharField(source='third_place_team.name', read_only=True, allow_null=True)
-    
+    first_place_team = TeamSerializer(read_only=True)  # Include detailed team information
+    second_place_team = TeamSerializer(read_only=True)  # Include detailed team information
+    third_place_team = TeamSerializer(read_only=True)  # Include detailed team information
+    group_name = serializers.CharField(source='group.name', read_only=True, allow_null=True)  # Include group name
 
     class Meta:
         model = Category
         fields = [
-            'id', 'name', 'competition', 'competition_name', 'type', 'gender',
-            'enrolled_athletes','enrolled_athletes', 'teams', 'first_place', 'second_place', 'third_place',
+            'id', 'name', 'competition', 'competition_name', 'group', 'group_name', 'type', 'gender',
+            'enrolled_athletes', 'teams', 'first_place', 'second_place', 'third_place',
             'first_place_name', 'second_place_name', 'third_place_name',
             'first_place_team', 'second_place_team', 'third_place_team',
-            'first_place_team_name', 'second_place_team_name', 'third_place_team_name',
         ]
 
 class GradeHistorySerializer(serializers.ModelSerializer):
@@ -234,3 +233,10 @@ class TrainingSeminarSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingSeminar
         fields = ['id', 'name', 'start_date', 'end_date', 'place', 'athletes', 'athletes_names']
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ['id', 'name', 'competition', 'categories']
+        read_only_fields = ['id']

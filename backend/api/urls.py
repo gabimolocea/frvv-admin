@@ -18,6 +18,7 @@ router.register('category', CategoryViewSet, basename='category')
 router.register('grade-history', GradeHistoryViewSet, basename='grade-history')
 router.register('medical-visa', MedicalVisaViewSet, basename='medical-visa')
 router.register('training-seminar', TrainingSeminarViewSet, basename='training-seminar')
+router.register('group', GroupViewSet, basename='group')
 
 
 urlpatterns = router.urls

@@ -27,6 +27,7 @@ from .models import (
     CategoryAthleteScore,
     CategoryTeamScore,
     TeamMember,
+    Group,
 )
 
 
@@ -559,12 +560,61 @@ class CategoryTeamInline(admin.TabularInline):
         return "No Placement"
     place_obtained.short_description = "Place Obtained"
 
+class GroupInline(admin.TabularInline):
+    """
+    Inline configuration for managing groups within a category.
+    """
+    model = Group
+    extra = 1  # Number of empty forms to display
+    fields = ('name',)  # Only display the name field
+    verbose_name = "Group"
+    verbose_name_plural = "Groups"
+
+class CategoryAdminForm(forms.ModelForm):
+    groups = forms.ModelMultipleChoiceField(
+        queryset=Group.objects.all(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,  # Use checkboxes for group selection
+        label="Groups"
+    )
+
+    class Meta:
+        model = Category
+        fields = '__all__'
+
+    def save(self, commit=True):
+        """
+        Override save to handle the ManyToMany relationship between Category and Group.
+        """
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+            # Update the groups relationship
+            instance.groups.set(self.cleaned_data['groups'])
+        return instance
+
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'competition', 'type', 'gender', 'display_winners')
-  #  filter_horizontal = ('athletes',)  # Allow assigning athletes directly
-    search_fields = ('name', 'competition__name', 'type', 'gender')  # Add search fields
-    autocomplete_fields = ['first_place', 'second_place', 'third_place', 'first_place_team', 'second_place_team', 'third_place_team']
+    list_display = ('name', 'competition', 'type', 'gender', 'group', 'display_winners')
+    search_fields = ('name', 'competition__name', 'type', 'gender', 'group_name')  # Add search fields
+    autocomplete_fields = ['group', 'first_place', 'second_place', 'third_place', 'first_place_team', 'second_place_team', 'third_place_team']
+   # form = CategoryAdminForm 
+   
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """
+        Restrict the group selection to groups that belong to the same competition as the category.
+        """
+        if db_field.name == 'group':
+            # Handle the case where request.obj is None (creating a new Category)
+            category_id = request.resolver_match.kwargs.get('object_id')  # Get the category ID from the URL
+            if category_id:
+                category = Category.objects.filter(pk=category_id).first()
+                if category:
+                    kwargs['queryset'] = Group.objects.filter(competition=category.competition)
+            else:
+                kwargs['queryset'] = Group.objects.none()  # No groups available when creating a new Category
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    
     def get_form(self, request, obj=None, **kwargs):
         """
         Dynamically modify the form to hide the 'athletes' field when creating a new category.
@@ -587,7 +637,7 @@ class CategoryAdmin(admin.ModelAdmin):
         
         fieldsets = [
             ('CATEGORY DETAILS', {
-                'fields': ('name', 'competition', 'type', 'gender')
+                'fields': ('name', 'competition', 'group', 'type', 'gender')
             }),
         ]
         if obj and obj.type in ['solo', 'fight']:
@@ -736,3 +786,11 @@ class MatchAdmin(admin.ModelAdmin):
                 kwargs['queryset'] = Athlete.objects.filter(pk__in=[request.obj.red_corner.pk, request.obj.blue_corner.pk])
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
+@admin.register(Group)
+class GroupAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the Group model.
+    """
+    list_display = ('name', 'competition')  # Display name and competition
+    search_fields = ('name', 'competition__name')  # Enable search by name and competition
+    list_filter = ('competition',)  # Add a filter for competition

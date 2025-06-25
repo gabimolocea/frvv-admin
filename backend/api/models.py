@@ -347,8 +347,8 @@ class Category(models.Model):
     competition = models.ForeignKey('Competition', on_delete=models.CASCADE, related_name='categories')
     type = models.CharField(max_length=20, choices=CATEGORY_TYPE_CHOICES, default='solo')
     gender = models.CharField(max_length=20, choices=GENDER_CHOICES, default='mixt')
-    athletes = models.ManyToManyField('Athlete', through='CategoryAthlete', related_name='categories', blank=True)  # Many-to-Many relationship with Athlete
-    teams = models.ManyToManyField('Team', through='CategoryTeam', related_name='category_teams', blank=True)  # Many-to-Many relationship with Team
+    athletes = models.ManyToManyField('Athlete', through='CategoryAthlete', related_name='categories', blank=True)
+    teams = models.ManyToManyField('Team', through='CategoryTeam', related_name='category_teams', blank=True)
 
     first_place = models.ForeignKey('Athlete', on_delete=models.SET_NULL, null=True, blank=True, related_name='first_place_categories')
     second_place = models.ForeignKey('Athlete', on_delete=models.SET_NULL, null=True, blank=True, related_name='second_place_categories')
@@ -357,9 +357,16 @@ class Category(models.Model):
     first_place_team = models.ForeignKey('Team', on_delete=models.SET_NULL, null=True, blank=True, related_name='first_place_team_categories')
     second_place_team = models.ForeignKey('Team', on_delete=models.SET_NULL, null=True, blank=True, related_name='second_place_team_categories')
     third_place_team = models.ForeignKey('Team', on_delete=models.SET_NULL, null=True, blank=True, related_name='third_place_team_categories')
-    
-     # Use the existing relationships for enrolled teams and individuals
-    
+
+    group = models.ForeignKey(
+        'Group',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='categories'
+    )  # Each category can be assigned to one group
+
+
     def clean(self):
         """
         Validate that the awarded individual or team is enrolled in the category and not awarded multiple times.
@@ -510,5 +517,22 @@ class CategoryTeamScore(models.Model):
 
     def __str__(self):
         return f"{self.team.name} - {self.category.name} - Referee: {self.referee.first_name} {self.referee.last_name}"
+
+
+
+
+class Group(models.Model):
+    """
+    Represents a group within a competition.
+    """
+    name = models.CharField(max_length=100, unique=True)  # Name of the group
+    competition = models.ForeignKey(
+        'Competition',
+        on_delete=models.CASCADE,
+        related_name='groups'
+    )  # Link each group to a specific competition
+
+    def __str__(self):
+        return f"{self.name} ({self.competition.name})"
 
 
