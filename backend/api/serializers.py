@@ -133,9 +133,11 @@ class TeamMemberSerializer(serializers.ModelSerializer):
 class MatchSerializer(serializers.ModelSerializer):
     # Include related fields for better readability
     category_name = serializers.CharField(source='category.name', read_only=True)
-    red_corner_name = serializers.CharField(source='red_corner.first_name', read_only=True)
-    blue_corner_name = serializers.CharField(source='blue_corner.first_name', read_only=True)
-    winner_name = serializers.CharField(source='winner.first_name', read_only=True, allow_null=True)
+    red_corner_full_name = serializers.SerializerMethodField()  # Full name for red corner
+    blue_corner_full_name = serializers.SerializerMethodField()  # Full name for blue corner
+    red_corner_club_name = serializers.CharField(source='red_corner.club.name', read_only=True, allow_null=True)  # Include red corner club name
+    blue_corner_club_name = serializers.CharField(source='blue_corner.club.name', read_only=True, allow_null=True)  # Include blue corner club name
+    winner_name = serializers.SerializerMethodField()  # Dynamically determine the winner name
     referees = serializers.StringRelatedField(many=True)  # Display referees as strings
 
     class Meta:
@@ -147,14 +149,36 @@ class MatchSerializer(serializers.ModelSerializer):
             'category_name',
             'match_type',
             'red_corner',
-            'red_corner_name',
+            'red_corner_full_name',  # Added full name for red corner
+            'red_corner_club_name',
             'blue_corner',
-            'blue_corner_name',
+            'blue_corner_full_name',  # Added full name for blue corner
+            'blue_corner_club_name',
             'referees',
             'winner',
-            'winner_name',
+            'winner_name',  # Dynamically determine the winner name
         ]
-        read_only_fields = ['name', 'winner_name', 'category_name', 'red_corner_name', 'blue_corner_name']
+        read_only_fields = ['name', 'category_name', 'red_corner_full_name', 'red_corner_club_name', 'blue_corner_full_name', 'blue_corner_club_name']
+
+    def get_red_corner_full_name(self, obj):
+        """Get the full name of the red corner athlete."""
+        if obj.red_corner:
+            return f"{obj.red_corner.first_name} {obj.red_corner.last_name}"
+        return "Unknown Athlete"
+
+    def get_blue_corner_full_name(self, obj):
+        """Get the full name of the blue corner athlete."""
+        if obj.blue_corner:
+            return f"{obj.blue_corner.first_name} {obj.blue_corner.last_name}"
+        return "Unknown Athlete"
+
+    def get_winner_name(self, obj):
+        """Determine the winner name dynamically."""
+        if obj.winner == obj.red_corner:
+            return self.get_red_corner_full_name(obj)
+        elif obj.winner == obj.blue_corner:
+            return self.get_blue_corner_full_name(obj)
+        return None  # No winner
 
     def validate(self, data):
         """

@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from rest_framework.decorators import api_view
 from rest_framework import viewsets, permissions
 from .serializers import *
 from .models import *
@@ -541,3 +542,39 @@ class GroupViewSet(viewsets.ViewSet):
         instance = self.queryset.get(pk=pk)
         instance.delete()
         return Response(status=204)
+
+@api_view(['GET'])
+def api_root(request, format=None):
+    """
+    API Root - Lists all available endpoints
+    """
+    return Response({
+        # Main API endpoints
+        'city': reverse('city-list', request=request, format=format),
+        'club': reverse('club-list', request=request, format=format),
+        'competition': reverse('competition-list', request=request, format=format),
+        'athlete': reverse('athlete-list', request=request, format=format),
+        'title': reverse('title-list', request=request, format=format),
+        'federation-role': reverse('federation-role-list', request=request, format=format),
+        'grade': reverse('grade-list', request=request, format=format),
+        'team': reverse('team-list', request=request, format=format),
+        'match': reverse('match-list', request=request, format=format),
+        'category': reverse('category-list', request=request, format=format),
+        'grade-history': reverse('grade-history-list', request=request, format=format),
+        'medical-visa': reverse('medical-visa-list', request=request, format=format),
+        'training-seminar': reverse('training-seminar-list', request=request, format=format),
+        'group': reverse('group-list', request=request, format=format),
+        
+        # Additional APIs
+        '_other_apis': {
+            'description': 'Other available API endpoints',
+            'landing_api': {
+                'url': request.build_absolute_uri('/landing/'),
+                'description': 'Landing page content management API (news, events, about, contact)'
+            },
+            'admin': {
+                'url': request.build_absolute_uri('/admin/'),
+                'description': 'Django admin interface'
+            }
+        }
+    })

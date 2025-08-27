@@ -455,7 +455,7 @@ class Match(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Override save to clear the winner if referee scoring is removed and generate the match name.
+        Override save to calculate the winner based on referee scores or allow manual winner selection.
         """
         # Save the instance first to ensure it has a primary key
         if not self.pk:
@@ -465,9 +465,13 @@ class Match(models.Model):
         # Generate the match name
         self.name = f"{self.red_corner.first_name} vs {self.blue_corner.first_name} ({self.match_type}) - {self.category.name}"
 
-        # Check if there are no referee scores
-        if self.pk and not self.referee_scores.exists():
-            self.winner = None  # Clear the winner
+        # Calculate the winner based on referee scores if they exist
+        if self.pk and self.referee_scores.exists():
+            self.winner = self.calculate_winner()
+        else:
+            # Allow manual winner selection if no referee scores exist
+            if not self.winner:
+                self.winner = None  # Clear the winner if not manually set
 
         # Save again to update the winner field and name
         super().save(*args, **kwargs)

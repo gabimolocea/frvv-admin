@@ -14,6 +14,9 @@ import ViewAthlete from './components/ViewAthlete'
 import ViewClub from './components/ViewClub'
 import Competitions from './components/Competitions'
 import CompetitionDetails from './components/CompetitionDetails'
+import NewsLayout from './components/NewsLayout'
+import NewsList from './pages/News/NewsList'
+import ArticleDetail from './pages/News/ArticleDetail'
 
 function App() {
   return (
@@ -29,6 +32,12 @@ function App() {
       <Route path="/athletes/:id/" element={<ViewAthlete />} />
       <Route path="/clubs/:id" element={<ViewClub />} />
       <Route path="/competitions" element={<Competitions />} />
+      
+       {/* News routes */}
+       <Route path="/news" element={<NewsLayout />}>
+            <Route index element={<NewsList />} />
+            <Route path=":slug" element={<ArticleDetail />} />
+          </Route>
     </Routes>
   );
 }

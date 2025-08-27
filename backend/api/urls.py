@@ -1,9 +1,11 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from .views import *
+from . import views
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
+
 router.register(r'city', CityViewSet, basename='city')
 router.register('club', ClubViewSet, basename='club')
 router.register('competition', CompetitionViewSet, basename='competition')
@@ -21,4 +23,6 @@ router.register('training-seminar', TrainingSeminarViewSet, basename='training-s
 router.register('group', GroupViewSet, basename='group')
 
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('', include(router.urls)),  # This will handle the actual endpoints
+]
