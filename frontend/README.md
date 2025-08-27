@@ -1,12 +1,146 @@
-# React + Vite
+# Sports Management System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A full-stack web application for managing sports organizations, built with Django REST Framework and React.
 
-Currently, two official plugins are available:
+## 🚀 Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Backend (Django REST API)
+- **Sports Management**: Athletes, clubs, competitions, matches
+- **News System**: CMS for news articles with rich text editor
+- **Landing Page**: Dynamic content management for homepage
+- **User Authentication**: Role-based access control
+- **Admin Interface**: Django admin for content management
 
-## Expanding the ESLint configuration
+### Frontend (React + Material-UI)
+- **Responsive Design**: Mobile-first approach with Material-UI
+- **News Portal**: Dynamic news listing and article pages
+- **Search & Filtering**: Real-time search functionality
+- **Modern UI**: Clean, professional interface
+- **SEO Friendly**: Proper meta tags and URL structure
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🛠️ Technology Stack
+
+### Backend
+- **Django 4.2+**: Web framework
+- **Django REST Framework**: API development
+- **CKEditor 5**: Rich text editor
+- **SQLite/PostgreSQL**: Database
+- **Pillow**: Image processing
+
+### Frontend
+- **React 18**: UI library
+- **Material-UI (MUI)**: Component library
+- **React Router**: Client-side routing
+- **Vite**: Build tool
+- **date-fns**: Date utilities
+
+## 📦 Installation
+
+### Prerequisites
+- Python 3.8+
+- Node.js 16+
+- npm or yarn
+
+### Quick Setup
+```bash
+# Clone the repository
+git clone https://github.com/gabimolocea/frvv-admin.git
+cd frvv-admin
+
+# Install all dependencies
+cd frontend
+npm run setup
+
+# Start development servers
+npm run dev
+
+
+
+# Navigate to backend directory
+cd backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On macOS/Linux:
+source venv/bin/activate
+# On Windows:
+# venv\Scripts\activate
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Run migrations
+python manage.py makemigrations
+python manage.py migrate
+
+# Create superuser
+python manage.py createsuperuser
+
+# Start Django server
+python manage.py runserver
+
+
+
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+
+🚀 Usage
+Development
+Backend: Access Django admin at http://localhost:8000/admin/
+API: REST API available at http://localhost:8000/api/
+Frontend: React app at http://localhost:5173/
+API Endpoints
+Main API (/api/)
+GET /api/ - API root with all available endpoints
+GET /api/athletes/ - List all athletes
+GET /api/clubs/ - List all clubs
+GET /api/competitions/ - List all competitions
+GET /api/matches/ - List all matches
+Landing API (/landing/)
+GET /landing/news/ - List news articles
+GET /landing/news/{id}/ - Get specific article
+GET /landing/events/ - List events
+GET /landing/about/ - About sections
+POST /landing/contact/submit/ - Submit contact form
+Creating Content
+Login to Admin: http://localhost:8000/admin/
+Add News: Go to "Landing" → "News Posts"
+Manage Sports Data: Use the respective sections in admin
+Content appears automatically in the React frontend
+
+
+
+# Install concurrently for running both servers
+npm install concurrently --save-dev
+
+
+Recommended Platforms
+Backend: Railway, Heroku, DigitalOcean
+Frontend: Vercel, Netlify, GitHub Pages
+Database: PostgreSQL (Railway, Heroku Postgres)
+🤝 Contributing
+Fork the repository
+Create a feature branch (git checkout -b feature/amazing-feature)
+Commit your changes (git commit -m 'Add some amazing feature')
+Push to the branch (git push origin feature/amazing-feature)
+Open a Pull Request
+📝 License
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+🐛 Issues
+If you encounter any issues, please create an issue.
+
+🙏 Acknowledgments
+Django REST Framework documentation
+Material-UI team
+React community
+Contributors and testers
